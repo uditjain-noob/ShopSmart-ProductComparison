@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Product Comparison</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+
+  <!-- ── Header ── -->
+  <header class="header">
+    <div class="header-left">
+      <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2z"/>
+        <path d="M15 7v12a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2z"/>
+      </svg>
+      <span>Product Comparison</span>
+    </div>
+    <div class="header-right">
+      <span class="phase-badge">Amazon</span>
+      <button id="theme-toggle" class="theme-toggle" title="Toggle light / dark">
+        <!-- sun — visible in dark mode (click to go light) -->
+        <svg class="icon-sun" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"/>
+        </svg>
+        <!-- moon — visible in light mode (click to go dark) -->
+        <svg class="icon-moon" viewBox="0 0 20 20" fill="currentColor">
+          <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ── Tab bar ── -->
+  <nav class="tab-bar">
+    <button class="tab active" data-tab="add">
+      <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
+      Add Product
+    </button>
+    <button class="tab" data-tab="lists">
+      <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h6a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"/></svg>
+      My Lists
+      <span id="tab-badge" class="tab-badge hidden">0</span>
+    </button>
+  </nav>
+
+  <!-- ══════════════════════════════════════════════════════════
+       ADD TAB
+  ══════════════════════════════════════════════════════════ -->
+  <div id="tab-add" class="tab-content">
+
+    <!-- Current page -->
+    <div class="section">
+      <div class="section-label">Current Page</div>
+      <div id="current-page-card" class="page-card">
+        <div id="page-platform" class="page-platform hidden"></div>
+        <div id="page-title" class="page-title">Detecting page…</div>
+        <div id="page-url" class="page-url"></div>
+      </div>
+
+      <div class="add-to-row">
+        <label class="add-to-label">Add to list:</label>
+        <select id="list-select-current" class="list-select">
+          <option value="">— select a list —</option>
+        </select>
+      </div>
+      <button id="add-current-btn" class="btn btn-primary" disabled>
+        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
+        Add Current Page
+      </button>
+    </div>
+
+    <div class="or-divider"><span>or paste a URL</span></div>
+
+    <!-- Manual URL -->
+    <div class="section">
+      <div class="paste-row">
+        <input type="url" id="url-input" placeholder="https://www.amazon.in/dp/…" spellcheck="false" autocomplete="off" />
+        <button id="add-url-btn" class="btn btn-secondary">Add</button>
+      </div>
+      <div class="add-to-row" style="margin-top:8px">
+        <label class="add-to-label">Add to list:</label>
+        <select id="list-select-url" class="list-select">
+          <option value="">— select a list —</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Quick-create list -->
+    <div class="section new-list-section">
+      <span class="text-muted">No list yet?</span>
+      <button id="quick-new-list-btn" class="btn-link">+ Create a new list</button>
+    </div>
+
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       LISTS TAB
+  ══════════════════════════════════════════════════════════ -->
+  <div id="tab-lists" class="tab-content hidden">
+
+    <div class="lists-toolbar">
+      <button id="new-list-btn" class="btn btn-sm btn-outline">
+        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
+        New List
+      </button>
+      <span id="selected-count-label" class="selected-count-label"></span>
+    </div>
+
+    <!-- Lists are rendered here -->
+    <div id="lists-container"></div>
+
+    <div id="lists-empty" class="empty-state hidden">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h7.5M8.25 12h7.5m-7.5 5.25H12"/>
+      </svg>
+      <span>No lists yet — create one to get started</span>
+    </div>
+
+  </div>
+
+  <!-- ── Footer ── -->
+  <footer class="footer">
+    <button id="compare-btn" class="btn btn-compare" disabled>
+      <svg viewBox="0 0 20 20" fill="currentColor"><path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM14 11a1 1 0 011 1v1h1a1 1 0 110 2h-1v1a1 1 0 11-2 0v-1h-1a1 1 0 110-2h1v-1a1 1 0 011-1z"/></svg>
+      <span id="compare-btn-label">View Comparison</span>
+    </button>
+  </footer>
+
+  <!-- ── New-list modal ── -->
+  <div id="modal-overlay" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-title" id="modal-title">New List</div>
+      <input type="text" id="modal-input" class="modal-input" placeholder="List name…" maxlength="40" />
+      <div class="modal-actions">
+        <button id="modal-cancel" class="btn btn-sm btn-secondary">Cancel</button>
+        <button id="modal-confirm" class="btn btn-sm btn-primary">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Toast ── -->
+  <div id="toast" class="toast" aria-live="polite"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
