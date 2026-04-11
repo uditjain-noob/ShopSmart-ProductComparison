@@ -10,6 +10,10 @@ ShopSmart Comparison is a **Chrome browser extension** that lets you collect Ama
 
 Instead of jumping back and forth between product pages, copying specs into a notes app, and trying to remember which reviewer said what — you just add the products you're considering, click **View Comparison**, and get a full report.
 
+For a youtube demo please watch the following video : 
+
+YOUTUBE DEMO LINK : [YOUTUBE DEMO](https://youtu.be/zvlUJTe-xXg)
+
 ---
 
 ## What do you get?
