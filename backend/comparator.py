@@ -42,18 +42,41 @@ You must produce three things:
 1. A comparison summary — 3-5 paragraph narrative covering key differences, trade-offs, and positioning.
 2. A recommendation — 2-3 paragraph recommendation with a clear winner or use-case guidance backed by the data.
 3. A personalisation questionnaire — exactly 5 multiple-choice questions to help a user decide which product
-   best suits THEM personally. Rules for the questions:
-   - Each question MUST target a real, specific trade-off visible in the specs, pros, or cons above
-     (e.g. if one product has more RAM but worse battery, ask which matters more to the user).
-   - Do NOT ask generic questions that apply to any product category. Every question must be
-     grounded in the actual differences between THESE specific products: {titles}
-   - Each question must have exactly 4 concise answer options (8 words or fewer per option).
-   - Cover different dimensions: use case, priority trade-offs, budget sensitivity, workflow needs, etc.
+   best suits THEM personally.
 
-Return ONLY a valid JSON object with exactly these keys — no markdown, no explanation:
+   STRUCTURE — write the questions in this order:
+   Q1–Q3: UNIVERSAL decision questions. These are about the user's lifestyle, habits, and priorities —
+          NOT about the specs of these specific products. Think about what genuinely drives purchase
+          decisions for this product category. Good examples by category:
+            - Earphones/headphones: primary use (commute, gym, office, home), most important trait (sound quality, comfort, call clarity, noise cancellation), usage duration per day
+            - Laptops: main activity (coding, creative work, browsing, gaming), where used most (desk, travel, both), how long before upgrade
+            - Phones: what they value most (camera, battery, performance, display), how tech-savvy they are, ecosystem (Android/Apple)
+          Do NOT ask about budget — the user has already chosen products in their price range.
+          Do NOT ask about brand preference — keep it about real usage patterns.
+
+   Q4–Q5: SPECIFIC differentiator questions. These must be grounded in an actual, meaningful difference
+          visible in the specs, pros, or cons of THESE products: {titles}
+          (e.g. if one has significantly better battery and another has better ANC, ask which matters more)
+
+   RULES for all 5 questions:
+   - Each question must have exactly 4 concise answer options (8 words or fewer per option).
+   - Options must be mutually exclusive and meaningfully different.
+   - Do NOT ask about price or budget.
+
+CRITICAL — Return ONLY a valid JSON object. No markdown, no explanation outside the JSON.
+Write "summary" and "recommendation" as ARRAYS of paragraph strings, NOT as one big string.
+This prevents JSON parsing failures. Do NOT use double-quote characters (") inside any paragraph text — use single quotes instead if you need to quote a product name or phrase.
+
 {{
-  "summary": "3-5 paragraph narrative...",
-  "recommendation": "2-3 paragraph recommendation...",
+  "summary": [
+    "First paragraph of the comparison summary.",
+    "Second paragraph.",
+    "Third paragraph."
+  ],
+  "recommendation": [
+    "First paragraph of the recommendation.",
+    "Second paragraph."
+  ],
   "questions": [
     {{"id": "q1", "text": "Question one?", "options": ["A", "B", "C", "D"]}},
     {{"id": "q2", "text": "Question two?", "options": ["A", "B", "C", "D"]}},
@@ -135,9 +158,16 @@ def generate_comparison(profiles: list[ProductProfile]) -> Comparison:
         data = parse_llm_json(response_text)
     except (ValueError, Exception) as exc:
         raise ValueError(f"LLM returned invalid JSON for comparison: {exc}") from exc
-    summary = data.get("summary", "")
-    recommendation = data.get("recommendation", "")
-    questions = data.get("questions", [])
+
+    def _join(field: object) -> str:
+        """Accept either an array of paragraphs (new format) or a plain string (fallback)."""
+        if isinstance(field, list):
+            return "\n\n".join(str(p) for p in field if p)
+        return str(field) if field else ""
+
+    summary        = _join(data.get("summary", ""))
+    recommendation = _join(data.get("recommendation", ""))
+    questions      = data.get("questions", [])
     markdown = _build_markdown(profiles, summary, recommendation)
 
     return Comparison(

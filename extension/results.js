@@ -21,9 +21,24 @@ function toggleTheme() {
   }
 }
 
+// ── Background messaging ──────────────────────────────────────────────────────
+
+function bg(message) {
+  return new Promise((res, rej) => {
+    chrome.runtime.sendMessage(message, r => {
+      if (chrome.runtime.lastError) return rej(chrome.runtime.lastError);
+      res(r);
+    });
+  });
+}
+
+const _getLists   = ()              => bg({ type: 'GET_LISTS' }).then(r => r.lists);
+const _addProduct = (listId, url)   => bg({ type: 'ADD_PRODUCT', listId, url, platform: 'Amazon' });
+
 // ── State ─────────────────────────────────────────────────────────────────────
 
-let _currentJobId = null;  // set once job_id is read from storage
+let _currentJobId  = null;  // set once job_id is read from storage
+let _currentAnswers = null; // stored when questionnaire is submitted; reused for discover-better
 
 // ── Utility ───────────────────────────────────────────────────────────────────
 
@@ -269,6 +284,9 @@ async function submitQuestionnaire() {
     }
   });
 
+  // Store answers for potential discover-better call later
+  _currentAnswers = answers;
+
   // Loading state
   submitBtn.disabled = true;
   submitBtn.innerHTML = `Finding your best match… <span class="btn-spin"></span>`;
@@ -319,6 +337,9 @@ function showBestMatch(recommendation) {
   }
 
   banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+  // Reveal the "Find Better Products" section now that the user has their match
+  show('section-discover-better');
 }
 
 function _applyBestMatchHighlight(card) {
@@ -340,6 +361,262 @@ function collapseQuestionnaire() {
       Questionnaire complete — your best match is highlighted below
     </div>
   `;
+}
+
+// ── Discover Better Products ──────────────────────────────────────────────────
+
+async function startDiscoverBetter() {
+  const btn = document.getElementById('discover-better-btn');
+  btn.disabled = true;
+  btn.innerHTML = `Searching… <span class="btn-spin-discover"></span>`;
+  hide('discover-better-btn');
+  show('discover-better-loading');
+
+  try {
+    const res = await fetch(`${API}/compare/${_currentJobId}/discover-better`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ answers: _currentAnswers }),
+    });
+    if (!res.ok) throw new Error(`Server error ${res.status}`);
+    const { discover_job_id } = await res.json();
+    pollDiscoverJob(discover_job_id);
+  } catch (err) {
+    hide('discover-better-loading');
+    show('discover-better-btn');
+    btn.disabled = false;
+    btn.innerHTML = `
+      <svg viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
+      </svg>
+      Search for Better Options`;
+    document.getElementById('discover-better-results').innerHTML =
+      `<p class="discover-error">Could not start search: ${escapeHtml(err.message)}. Make sure the backend is running.</p>`;
+    show('discover-better-results');
+  }
+}
+
+function pollDiscoverJob(discoverJobId) {
+  let interval;
+
+  async function check() {
+    try {
+      const res  = await fetch(`${API}/discover/${discoverJobId}`);
+
+      if (!res.ok) {
+        clearInterval(interval);
+        hide('discover-better-loading');
+        _showDiscoverError(
+          res.status === 404
+            ? 'Search session expired (server restarted). Please click "Search for Better Options" again.'
+            : `Server error ${res.status}. Please try again.`
+        );
+        return;
+      }
+
+      const data = await res.json();
+
+      document.getElementById('discover-progress-text').textContent =
+        data.progress || 'Searching…';
+
+      if (data.status === 'complete') {
+        clearInterval(interval);
+        hide('discover-better-loading');
+        renderSuggestions(data.suggestions || []);
+        show('discover-better-results');
+        document.getElementById('discover-better-results')
+          .scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else if (data.status === 'error') {
+        clearInterval(interval);
+        hide('discover-better-loading');
+        _showDiscoverError(data.error || 'Unknown error.');
+      }
+    } catch {
+      clearInterval(interval);
+      hide('discover-better-loading');
+      _showDiscoverError('Lost connection to the backend. Make sure the server is still running.');
+    }
+  }
+
+  check();
+  interval = setInterval(check, 3000);
+}
+
+function _showDiscoverError(message) {
+  const results = document.getElementById('discover-better-results');
+  results.innerHTML = `
+    <div class="discover-error-card">
+      <div class="discover-error-icon">
+        <svg viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+        </svg>
+      </div>
+      <div class="discover-error-body">
+        <div class="discover-error-title">Search failed</div>
+        <p class="discover-error-message">${escapeHtml(message)}</p>
+        <button class="btn btn-discover btn-discover-retry" onclick="retryDiscoverBetter()">
+          <svg viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/>
+          </svg>
+          Try Again
+        </button>
+      </div>
+    </div>
+  `;
+  show('discover-better-results');
+}
+
+function retryDiscoverBetter() {
+  hide('discover-better-results');
+  document.getElementById('discover-better-results').innerHTML = '';
+  show('discover-better-btn');
+  const btn = document.getElementById('discover-better-btn');
+  btn.disabled = false;
+  btn.innerHTML = `
+    <svg viewBox="0 0 20 20" fill="currentColor">
+      <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
+    </svg>
+    Search for Better Options`;
+}
+
+// ── Add suggestion to list ────────────────────────────────────────────────────
+
+async function addSuggestionToList(btn, url) {
+  btn.disabled = true;
+  btn.innerHTML = '<span class="btn-spinner"></span> Checking…';
+
+  try {
+    const lists = await _getLists();
+
+    if (!lists.length) {
+      btn.disabled = false;
+      btn.innerHTML = '⚠ No lists — open popup first';
+      return;
+    }
+
+    if (lists.length === 1) {
+      const res = await _addProduct(lists[0].id, url);
+      if (res.success) {
+        btn.className = 'btn btn-added';
+        btn.innerHTML = `<svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg> Added to "${escapeHtml(lists[0].name)}"`;
+      } else {
+        btn.disabled = false;
+        btn.innerHTML = `⚠ ${escapeHtml(res.error)}`;
+      }
+      return;
+    }
+
+    // Multiple lists — show an inline picker
+    const picker = document.createElement('div');
+    picker.className = 'list-picker';
+    picker.innerHTML = `
+      <span class="list-picker-label">Add to which list?</span>
+      <div class="list-picker-options">
+        ${lists.map(l => `<button class="list-picker-option" data-id="${l.id}">${escapeHtml(l.name)}</button>`).join('')}
+      </div>
+      <button class="list-picker-cancel">Cancel</button>
+    `;
+
+    btn.replaceWith(picker);
+
+    picker.querySelectorAll('.list-picker-option').forEach(opt => {
+      opt.addEventListener('click', async () => {
+        const listId = parseInt(opt.dataset.id, 10);
+        const list   = lists.find(l => l.id === listId);
+        const res    = await _addProduct(listId, url);
+
+        const replacement = document.createElement('button');
+        if (res.success) {
+          replacement.className = 'btn btn-added';
+          replacement.innerHTML = `<svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg> Added to "${escapeHtml(list.name)}"`;
+          replacement.disabled = true;
+        } else {
+          replacement.className = 'btn btn-add-to-list';
+          replacement.dataset.url = url;
+          replacement.innerHTML = `⚠ ${escapeHtml(res.error)} — try again`;
+          replacement.addEventListener('click', () => addSuggestionToList(replacement, url));
+        }
+        picker.replaceWith(replacement);
+      });
+    });
+
+    picker.querySelector('.list-picker-cancel').addEventListener('click', () => {
+      const replacement = document.createElement('button');
+      replacement.className = 'btn btn-add-to-list';
+      replacement.dataset.url = url;
+      replacement.innerHTML = `<svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg> Add to comparison`;
+      replacement.addEventListener('click', () => addSuggestionToList(replacement, url));
+      picker.replaceWith(replacement);
+    });
+
+  } catch (err) {
+    btn.disabled = false;
+    btn.innerHTML = `<svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg> Add to comparison`;
+  }
+}
+
+function renderSuggestions(suggestions) {
+  const container = document.getElementById('discover-better-results');
+
+  if (!suggestions.length) {
+    _showDiscoverError('The agent could not find better matching products. Try adjusting your questionnaire answers.');
+    return;
+  }
+
+  const stars = (rating) => {
+    if (rating == null) return '';
+    const full  = Math.floor(rating);
+    const half  = rating - full >= 0.5 ? 1 : 0;
+    const empty = 5 - full - half;
+    return '★'.repeat(full) + (half ? '½' : '') + '☆'.repeat(empty) + ` ${rating.toFixed(1)}`;
+  };
+
+  container.innerHTML = `
+    <div class="discover-success-banner">
+      <div class="discover-success-icon">
+        <svg viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+        </svg>
+      </div>
+      <div>
+        <div class="discover-success-title">Found ${suggestions.length} better option${suggestions.length !== 1 ? 's' : ''} for you</div>
+        <div class="discover-success-sub">Each pick is based on your questionnaire answers and budget range.</div>
+      </div>
+    </div>
+    ${suggestions.map((s, i) => `
+      <div class="suggestion-card" data-suggestion-index="${i}">
+        <div class="suggestion-body">
+          <div class="suggestion-title">${escapeHtml(s.title)}</div>
+          <div class="suggestion-meta">
+            ${s.price ? `<span class="suggestion-price">${escapeHtml(s.price)}</span>` : ''}
+            ${s.rating != null ? `<span class="suggestion-rating">${stars(s.rating)}</span>` : ''}
+          </div>
+          <div class="suggestion-reason">
+            <div class="suggestion-reason-label">Why this fits you</div>
+            <p>${escapeHtml(s.reason)}</p>
+          </div>
+          <div class="suggestion-actions">
+            <a href="${escapeHtml(s.url)}" target="_blank" rel="noopener noreferrer" class="btn btn-amazon">
+              View on Amazon
+              <svg viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd"/>
+              </svg>
+            </a>
+            <button class="btn btn-add-to-list" data-url="${escapeHtml(s.url)}">
+              <svg viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
+              </svg>
+              Add to comparison
+            </button>
+          </div>
+        </div>
+      </div>
+    `).join('')}
+  `;
+
+  container.querySelectorAll('.btn-add-to-list').forEach(btn => {
+    btn.addEventListener('click', () => addSuggestionToList(btn, btn.dataset.url));
+  });
 }
 
 // ── Polling ───────────────────────────────────────────────────────────────────
@@ -396,6 +673,8 @@ async function init() {
   }
 
   pollJob(jobId);
+
+  document.getElementById('discover-better-btn').addEventListener('click', startDiscoverBetter);
 }
 
 document.addEventListener('DOMContentLoaded', init);

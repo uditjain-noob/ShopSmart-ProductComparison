@@ -3,19 +3,48 @@ Thin wrapper around the Gemini API via the google-genai SDK.
 
 Configure via .env:
     GEMINI_API_KEY=AIza...
-    GEMINI_MODEL=gemini-2.5-flash   # optional override
+    GEMINI_MODEL=gemini-2.5-flash   # optional primary model override
+
+Retry / fallback strategy — round-robin across all models:
+
+    Round 1:  gemini-2.5-flash → gemini-2.5-pro → gemini-2.5-flash-lite
+    (wait 4 s if all failed)
+    Round 2:  gemini-2.5-flash → gemini-2.5-pro → gemini-2.5-flash-lite
+    (wait 4 s if all failed)
+    … up to MAX_ROUNDS, then raise.
+
+Each model gets ONE attempt per round. On a 503 / rate-limit we move to the
+next model immediately — no waiting within a round.
+Non-retryable errors (bad API key, invalid request) raise straight away.
 """
 
 import json
+import logging
 import os
 import re
+import time
 
 from google import genai
 from dotenv import load_dotenv
 
 load_dotenv()
 
+log = logging.getLogger(__name__)
+
 DEFAULT_MODEL = "gemini-2.5-flash"
+
+# Fallback order after the primary model. All three are on the Google AI
+# Studio free tier (Tier 1). Edit here or set GEMINI_MODEL in .env to change.
+#   gemini-2.5-pro        — more capable; free tier limited to 5 RPM
+#   gemini-2.5-flash-lite — lightest/fastest; least likely to be overloaded
+# NOTE: gemini-2.0-flash / gemini-2.0-flash-lite are deprecated (shutdown June 2026).
+FALLBACK_MODELS = [
+    "gemini-2.5-pro",
+    "gemini-2.5-flash-lite",
+]
+
+INTER_ROUND_WAIT = 4   # seconds to rest between full rounds
+MAX_ROUNDS       = 5   # give up after this many complete rounds
 
 _client: genai.Client | None = None
 
@@ -30,12 +59,58 @@ def _get_client() -> genai.Client:
     return _client
 
 
+def _is_retryable(exc: Exception) -> bool:
+    """Return True for transient server-side errors worth cycling past."""
+    msg = str(exc).lower()
+    return any(marker in msg for marker in (
+        "503", "unavailable", "high demand", "overloaded",
+        "429", "resource_exhausted", "rate limit", "too many requests",
+    ))
+
+
 def call_llm(prompt: str) -> str:
-    """Send a single user prompt and return the model's reply as a string."""
-    client = _get_client()
-    model  = os.getenv("GEMINI_MODEL", DEFAULT_MODEL)
-    response = client.models.generate_content(model=model, contents=prompt)
-    return response.text
+    """
+    Send a single user prompt and return the model's reply as a string.
+
+    Round-robin fallback: each model gets one shot per round; on 503/rate-limit
+    the next model is tried immediately. After all models fail in a round, waits
+    INTER_ROUND_WAIT seconds then starts the next round.
+    """
+    primary = os.getenv("GEMINI_MODEL", DEFAULT_MODEL)
+    models: list[str] = [primary] + [m for m in FALLBACK_MODELS if m != primary]
+
+    client    = _get_client()
+    last_exc: Exception = RuntimeError("No models tried.")
+
+    for round_num in range(1, MAX_ROUNDS + 1):
+        if round_num > 1:
+            log.warning(
+                "[LLM] All %d models unavailable in round %d — waiting %ds before round %d…",
+                len(models), round_num - 1, INTER_ROUND_WAIT, round_num,
+            )
+            time.sleep(INTER_ROUND_WAIT)
+
+        for model in models:
+            try:
+                response = client.models.generate_content(model=model, contents=prompt)
+                if model != primary or round_num > 1:
+                    log.info("[LLM] Success — model: %s  round: %d", model, round_num)
+                return response.text
+
+            except Exception as exc:
+                last_exc = exc
+                if _is_retryable(exc):
+                    log.warning(
+                        "[LLM] Round %d — %s returned 503/rate-limit, moving to next model…",
+                        round_num, model,
+                    )
+                else:
+                    raise   # auth failure, bad request — no point continuing
+
+    raise RuntimeError(
+        f"All Gemini models unavailable after {MAX_ROUNDS} rounds. "
+        f"Last error: {last_exc}"
+    ) from last_exc
 
 
 def parse_llm_json(text: str) -> dict:

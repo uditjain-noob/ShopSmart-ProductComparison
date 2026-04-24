@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "Product Comparison Tool",
+  "version": "1.0.0",
+  "description": "Compare Amazon products with AI-powered insights. Add 2–5 products and generate a detailed side-by-side comparison.",
+
+  "permissions": ["activeTab", "storage", "tabs", "scripting"],
+  "host_permissions": [
+    "https://www.amazon.in/*",
+    "https://www.amazon.com/*",
+    "https://www.amazon.co.uk/*",
+    "https://www.amazon.de/*",
+    "https://www.amazon.ca/*",
+    "http://localhost:8000/*"
+  ],
+
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Product Comparison Tool"
+  },
+
+  "background": {
+    "service_worker": "background.js"
+  },
+
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.amazon.in/*",
+        "https://www.amazon.com/*",
+        "https://www.amazon.co.uk/*",
+        "https://www.amazon.de/*",
+        "https://www.amazon.ca/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+
+  "web_accessible_resources": [
+    {
+      "resources": ["results.html"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

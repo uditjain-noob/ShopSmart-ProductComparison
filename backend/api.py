@@ -29,6 +29,10 @@ app.add_middleware(
 # In-memory job store. Resets on server restart (no persistence, per spec).
 _jobs: dict[str, dict] = {}
 
+# Separate store for discovery jobs (find-better-products).
+# Kept distinct from _jobs to avoid shape conflicts.
+_discover_jobs: dict[str, dict] = {}
+
 
 # ── Request models ────────────────────────────────────────────────────────────
 
@@ -38,6 +42,10 @@ class CompareRequest(BaseModel):
 
 class RecommendRequest(BaseModel):
     answers: dict[str, str]  # question_id → answer string
+
+
+class DiscoverBetterRequest(BaseModel):
+    answers: dict[str, str]  # same shape as RecommendRequest
 
 
 # ── Background job runner ─────────────────────────────────────────────────────
@@ -137,6 +145,54 @@ def _run_job(job_id: str, urls: list[str]) -> None:
         job["progress"] = "Failed"
 
 
+# ── Discovery job runner ──────────────────────────────────────────────────────
+
+def _run_discover_better(
+    discover_job_id: str,
+    profiles: list,
+    questions: list[dict],
+    answers: dict[str, str],
+) -> None:
+    """
+    Runs the tool-calling discovery agent in a background thread.
+    Stores results in _discover_jobs[discover_job_id].
+    """
+    import logging
+    from .agent import find_better_products
+
+    log = logging.getLogger(__name__)
+    job = _discover_jobs[discover_job_id]
+
+    try:
+        job["progress"] = "Agent is starting up…"
+        log.info("[DiscoverJob %s] Starting agent", discover_job_id[:8])
+
+        def _update_progress(msg: str) -> None:
+            job["progress"] = msg
+
+        suggestions = find_better_products(profiles, questions, answers, progress_callback=_update_progress)
+
+        job["suggestions"] = [
+            {
+                "title":  s.title,
+                "url":    s.url,
+                "price":  s.price,
+                "rating": s.rating,
+                "reason": s.reason,
+            }
+            for s in suggestions
+        ]
+        job["status"]   = "complete"
+        job["progress"] = "Done"
+        log.info("[DiscoverJob %s] Found %d suggestions", discover_job_id[:8], len(suggestions))
+
+    except Exception as exc:
+        log.error("[DiscoverJob %s] Error: %s", discover_job_id[:8], exc)
+        job["status"]   = "error"
+        job["error"]    = str(exc)
+        job["progress"] = "Failed"
+
+
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @app.get("/health")
@@ -201,3 +257,48 @@ def get_recommendation(job_id: str, request: RecommendRequest):
 
     questions = job.get("result", {}).get("questionnaire", {}).get("questions", [])
     return generate_personalized_recommendation(profiles, questions, request.answers)
+
+
+@app.post("/compare/{job_id}/discover-better")
+def start_discover_better(job_id: str, request: DiscoverBetterRequest):
+    """
+    Launch the discovery agent to find products that better fit the user's
+    questionnaire answers than the ones they have already compared.
+    """
+    job = _jobs.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found.")
+    if job["status"] != "complete":
+        raise HTTPException(status_code=400, detail="Comparison job not yet complete.")
+
+    profiles = job.get("_profiles")
+    if not profiles:
+        raise HTTPException(status_code=400, detail="Profile data not available.")
+
+    questions = job.get("result", {}).get("questionnaire", {}).get("questions", [])
+
+    discover_job_id = str(uuid.uuid4())
+    _discover_jobs[discover_job_id] = {
+        "status":      "running",
+        "progress":    "Starting search…",
+        "suggestions": [],
+        "error":       None,
+    }
+
+    thread = threading.Thread(
+        target=_run_discover_better,
+        args=(discover_job_id, profiles, questions, request.answers),
+        daemon=True,
+    )
+    thread.start()
+
+    return {"discover_job_id": discover_job_id}
+
+
+@app.get("/discover/{discover_job_id}")
+def get_discover_better(discover_job_id: str):
+    """Poll the status of a discovery job."""
+    job = _discover_jobs.get(discover_job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail=f"Discover job '{discover_job_id}' not found.")
+    return job

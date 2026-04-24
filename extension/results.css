@@ -634,10 +634,206 @@ body {
   padding: 3px 10px; border-radius: 20px; margin-bottom: 8px;
 }
 
+/* ── Find Better Products Section ──────────────────────────────────────────── */
+
+.discover-better-card {
+  border: 1px solid var(--primary-ring);
+  background: linear-gradient(135deg, var(--card) 0%, var(--primary-light) 100%);
+}
+
+.discover-better-intro {
+  display: flex; align-items: flex-start; gap: 14px; margin-bottom: 18px;
+}
+.discover-better-icon {
+  width: 36px; height: 36px; flex-shrink: 0;
+  background: var(--primary-light); border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--primary);
+}
+.discover-better-icon svg { width: 18px; height: 18px; }
+.discover-better-title { margin-bottom: 4px; }
+.discover-better-subtitle {
+  font-size: 13px; color: var(--text-muted); line-height: 1.5; margin: 0;
+}
+
+.btn-discover {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600;
+  cursor: pointer; border: none;
+  background: var(--primary); color: #1e2130;
+  transition: background 0.15s, transform 0.1s;
+}
+.btn-discover:hover:not(:disabled) { background: var(--primary-dark); }
+.btn-discover:active:not(:disabled) { transform: scale(0.97); }
+.btn-discover:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-discover svg { width: 16px; height: 16px; }
+
+/* Discover loading state */
+.discover-loading {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 10px; padding: 28px 0; text-align: center;
+}
+@keyframes spin-discover { to { transform: rotate(360deg); } }
+.discover-spinner {
+  width: 32px; height: 32px; border-radius: 50%;
+  border: 3px solid var(--spinner-track);
+  border-top-color: var(--primary);
+  animation: spin-discover 0.8s linear infinite;
+}
+.discover-progress-text { font-size: 14px; font-weight: 500; color: var(--text); }
+.discover-loading-note  { font-size: 12px; color: var(--text-muted); }
+
+/* Success banner */
+.discover-success-banner {
+  display: flex; align-items: flex-start; gap: 12px;
+  background: var(--success-light); border: 1px solid var(--success);
+  border-radius: var(--radius); padding: 14px 16px; margin-bottom: 16px;
+}
+.discover-success-icon {
+  width: 32px; height: 32px; flex-shrink: 0;
+  background: var(--success); border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff;
+}
+.discover-success-icon svg { width: 16px; height: 16px; }
+.discover-success-title {
+  font-size: 14px; font-weight: 700; color: var(--success); margin-bottom: 2px;
+}
+.discover-success-sub { font-size: 12px; color: var(--text-muted); }
+
+/* Error card */
+.discover-error-card {
+  display: flex; align-items: flex-start; gap: 12px;
+  background: var(--error-bg); border: 1px solid var(--error-border);
+  border-radius: var(--radius); padding: 16px;
+}
+.discover-error-icon {
+  width: 32px; height: 32px; flex-shrink: 0;
+  background: var(--danger); border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff;
+}
+.discover-error-icon svg { width: 16px; height: 16px; }
+.discover-error-body { flex: 1; min-width: 0; }
+.discover-error-title { font-size: 14px; font-weight: 700; color: var(--danger); margin-bottom: 4px; }
+.discover-error-message { font-size: 13px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5; }
+.btn-discover-retry { margin-top: 4px; font-size: 13px; padding: 7px 14px; }
+
+/* Suggestion card */
+.suggestion-card {
+  display: flex; gap: 16px; align-items: flex-start;
+  background: var(--bg-subtle); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px; margin-bottom: 12px;
+}
+.suggestion-card:last-child { margin-bottom: 0; }
+
+.suggestion-body { flex: 1; min-width: 0; }
+.suggestion-title {
+  font-size: 14px; font-weight: 600; color: var(--text);
+  line-height: 1.4; margin-bottom: 6px;
+}
+.suggestion-meta {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 10px; flex-wrap: wrap;
+}
+.suggestion-price {
+  font-size: 15px; font-weight: 700; color: var(--primary-dark);
+}
+.suggestion-rating {
+  font-size: 12px; color: var(--warning); font-weight: 500; letter-spacing: 0.5px;
+}
+[data-theme="light"] .suggestion-rating { color: #c48a5e; }
+
+.suggestion-reason {
+  background: var(--card); border-left: 3px solid var(--primary);
+  border-radius: 0 6px 6px 0; padding: 10px 12px; margin-bottom: 12px;
+}
+.suggestion-reason-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.6px;
+  text-transform: uppercase; color: var(--primary); margin-bottom: 4px;
+}
+.suggestion-reason p { font-size: 13px; color: var(--text-muted); line-height: 1.55; margin: 0; }
+
+.suggestion-actions {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+}
+
+.btn-amazon {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border-radius: 6px; font-size: 12px; font-weight: 600;
+  text-decoration: none; cursor: pointer;
+  background: transparent; border: 1px solid var(--primary);
+  color: var(--primary); transition: background 0.15s, color 0.15s;
+}
+.btn-amazon:hover { background: var(--primary); color: #1e2130; }
+.btn-amazon svg   { width: 12px; height: 12px; }
+[data-theme="light"] .btn-amazon:hover { color: #2d3142; }
+
+.btn-add-to-list {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border-radius: 6px; font-size: 12px; font-weight: 600;
+  cursor: pointer; border: 1px solid var(--border);
+  background: var(--bg-subtle); color: var(--text-muted);
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.btn-add-to-list:hover:not(:disabled) {
+  border-color: var(--primary); color: var(--primary); background: var(--card);
+}
+.btn-add-to-list:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-add-to-list svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+.btn-added {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border-radius: 6px; font-size: 12px; font-weight: 600;
+  border: 1px solid var(--success, #4caf50); color: var(--success, #4caf50);
+  background: transparent; cursor: default;
+}
+.btn-added svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+/* Inline list picker shown when user has multiple lists */
+.list-picker {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  padding: 8px 10px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--card);
+}
+.list-picker-label {
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.5px; color: var(--text-muted);
+  width: 100%; margin-bottom: 2px;
+}
+.list-picker-options { display: flex; flex-wrap: wrap; gap: 6px; }
+.list-picker-option {
+  padding: 5px 12px; border-radius: 6px; font-size: 12px; font-weight: 600;
+  cursor: pointer; border: 1px solid var(--primary);
+  background: transparent; color: var(--primary);
+  transition: background 0.15s, color 0.15s;
+}
+.list-picker-option:hover { background: var(--primary); color: #1e2130; }
+[data-theme="light"] .list-picker-option:hover { color: #2d3142; }
+.list-picker-cancel {
+  padding: 5px 10px; border-radius: 6px; font-size: 11px;
+  cursor: pointer; border: 1px solid var(--border);
+  background: transparent; color: var(--text-muted);
+  transition: color 0.15s, border-color 0.15s;
+}
+.list-picker-cancel:hover { color: var(--danger); border-color: var(--danger); }
+
+/* Spinner used inside the add button while loading */
+.btn-spinner {
+  display: inline-block; width: 12px; height: 12px;
+  border: 2px solid currentColor; border-top-color: transparent;
+  border-radius: 50%; animation: spin 0.7s linear infinite;
+}
+
+.discover-error {
+  font-size: 13px; color: var(--danger); padding: 12px 0;
+  text-align: center;
+}
+
 /* ── Print / Save as PDF ────────────────────────────────────────────────────── */
 @media print {
   #view-loading, #view-error, .header-actions,
-  #section-questionnaire, #best-match-banner { display: none !important; }
+  #section-questionnaire, #best-match-banner,
+  #section-discover-better { display: none !important; }
 
   body { background: white; font-size: 11pt; color: #000; }
 

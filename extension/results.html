@@ -83,6 +83,38 @@
         </div>
       </div>
 
+      <!-- 0.3. Find Better Products (revealed after questionnaire is submitted) -->
+      <section id="section-discover-better" class="card discover-better-card hidden">
+        <div class="discover-better-intro">
+          <div class="discover-better-icon">
+            <svg viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
+            </svg>
+          </div>
+          <div>
+            <h2 class="card-title discover-better-title">Find Even Better Products</h2>
+            <p class="discover-better-subtitle">Not fully satisfied? Our agent will search Amazon using your preferences and budget to suggest 3 products that may suit you better.</p>
+          </div>
+        </div>
+
+        <button id="discover-better-btn" class="btn btn-discover">
+          <svg viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
+          </svg>
+          Search for Better Options
+        </button>
+
+        <!-- Loading state -->
+        <div id="discover-better-loading" class="discover-loading hidden">
+          <div class="discover-spinner"></div>
+          <p id="discover-progress-text" class="discover-progress-text">Searching…</p>
+          <p class="discover-loading-note">The agent is researching Amazon. This may take up to a minute.</p>
+        </div>
+
+        <!-- Suggestion cards -->
+        <div id="discover-better-results" class="discover-results hidden"></div>
+      </section>
+
       <!-- 0.5. Personalisation Questionnaire -->
       <section id="section-questionnaire" class="card questionnaire-card">
         <div class="questionnaire-header">

@@ -8,9 +8,9 @@
 
 ShopSmart Comparison is a **Chrome browser extension** that lets you collect Amazon products as you browse and then generate a detailed, AI-powered side-by-side comparison with a single click.
 
-Instead of jumping back and forth between product pages, copying specs into a notes app, and trying to remember which reviewer said what — you just add the products you're considering, click **View Comparison**, and get a full report.
+Instead of jumping back and forth between product pages, copying specs into a notes app, and trying to remember which reviewer said what — you just add the products you're considering, click **View Comparison**, and get a full report. And if you're still not satisfied, the built-in **AI discovery agent** can search Amazon on your behalf and surface three better-fitting options — automatically.
 
-For a youtube demo please watch the following video : 
+For a youtube demo please watch the following video :
 
 YOUTUBE DEMO LINK : [YOUTUBE DEMO](https://youtu.be/zvlUJTe-xXg)
 
@@ -18,7 +18,7 @@ YOUTUBE DEMO LINK : [YOUTUBE DEMO](https://youtu.be/zvlUJTe-xXg)
 
 ## What do you get?
 
-When you trigger a comparison you get a full-page report with five sections:
+When you trigger a comparison you get a full-page report with six sections:
 
 | Section | What it tells you |
 |---|---|
@@ -27,6 +27,7 @@ When you trigger a comparison you get a full-page report with five sections:
 | **Recommendation** | A clear conclusion: which product wins and for which kind of buyer |
 | **Pros & Cons** | One card per product with strengths, weaknesses, and real customer quotes |
 | **Specifications** | A side-by-side table of technical specs so you can compare numbers at a glance |
+| **Smarter Product Finder** | After answering the questionnaire, the AI agent searches Amazon for 3 products that fit your criteria *better* than what you've already seen |
 
 You can also **save the whole report as a PDF** to read later or share with someone.
 
@@ -138,9 +139,30 @@ A new tab opens showing a loading screen. It typically takes **30–90 seconds**
 
 **Specifications table** — a grid showing technical specs side-by-side. Only specs that appear for at least two products are shown, keeping it clean.
 
+### Using the Smarter Product Finder
+
+After you submit the questionnaire and see your Best Match, a new section appears at the bottom of the page: **"Search for Better Options"**.
+
+Click the button to launch the AI discovery agent. It will:
+
+1. Read your questionnaire answers and the products you already compared
+2. Infer your budget range automatically from the prices of those products
+3. Search Amazon India for candidates that better match your stated priorities
+4. Evaluate up to 10 products in detail, then output the 3 best fits as suggestion cards
+
+Each suggestion card shows:
+- The product title, price, and star rating
+- A **"Why this fits you"** explanation written specifically for your answers
+- A **"View on Amazon"** button to open the listing directly
+- An **"Add to comparison"** button to save it to one of your lists so you can run a fresh comparison including the new product
+
+The agent uses Google Gemini with automatic model fallback (Flash → Pro → Flash-Lite) so it keeps working even when one model is busy.
+
+> The search typically takes **30–60 seconds**. Live progress is shown while the agent works.
+
 ### Saving as PDF
 
-Click **"Save as PDF"** in the top-right corner of the results page. Your browser's print dialog opens — choose **"Save as PDF"** as the destination. The saved file is clean and print-ready (no buttons or loading spinners).
+Click **"Save as PDF"** in the top-right corner of the results page. Your browser's print dialog opens — choose **"Save as PDF"** as the destination. The saved file is clean and print-ready (no buttons, spinners, or the discovery section).
 
 ---
 
@@ -169,6 +191,12 @@ Not yet — currently only Amazon is supported. Other platforms are planned for 
 
 **The tool says "Cannot connect to backend". What do I do?**
 The backend program isn't running. Open a terminal and run the command from Step 3 again.
+
+**The Smarter Product Finder says the session expired. What happened?**
+The discovery agent stores its job in the backend's memory. If you restart the backend while the agent is running (or was recently finished), the job ID is lost. Click **"Search for Better Options"** again to start a new search.
+
+**The agent says it couldn't find any products. What should I try?**
+The agent infers its search from your questionnaire answers. Try giving more specific answers (e.g. name a concrete use case rather than "general use") and run the search again. You can also check that the backend server is still running in the terminal.
 
 ---
 
