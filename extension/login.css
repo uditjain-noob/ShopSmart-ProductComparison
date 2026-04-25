@@ -1,0 +1,85 @@
+*, *::before, *::after { box-sizing: border-box; }
+
+:root {
+  --bg: #1e2130;
+  --card: #252838;
+  --text: #f0eeee;
+  --muted: #8a93a8;
+  --primary: #89b0ae;
+  --border: #363d52;
+  --danger: #e07a71;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.auth-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.auth-card {
+  width: min(420px, 100%);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.25);
+}
+
+h1 { margin: 0 0 6px; font-size: 28px; }
+.subtitle { margin: 0 0 22px; color: var(--muted); }
+
+.mode-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.mode-switch button,
+.primary-btn {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  padding: 10px 12px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.mode-switch button.active,
+.primary-btn {
+  background: var(--primary);
+  color: #1e2130;
+  border-color: var(--primary);
+}
+
+label {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+
+input {
+  width: 100%;
+  margin-top: 6px;
+  padding: 11px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+}
+
+.primary-btn { width: 100%; margin-top: 4px; }
+.message { min-height: 22px; margin: 14px 0 0; color: var(--danger); }
+.message.success { color: var(--primary); }

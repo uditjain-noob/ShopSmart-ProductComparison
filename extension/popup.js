@@ -1,7 +1,7 @@
 'use strict';
 
-const API = 'http://localhost:8000';
 const MIN = 2;
+const MAX_COMPARE = 5;
 
 // ── Theme ─────────────────────────────────────────────────────────────────────
 
@@ -56,6 +56,7 @@ const addProduct     = (id, url, platform) => bg({ type: 'ADD_PRODUCT', listId: 
 const removeProduct  = (id, idx)   => bg({ type: 'REMOVE_PRODUCT', listId: id, index: idx });
 const toggleProduct  = (id, idx)   => bg({ type: 'TOGGLE_PRODUCT', listId: id, index: idx });
 const selectAll      = id          => bg({ type: 'SELECT_ALL', listId: id });
+const setSavedListId = (id, savedListId) => bg({ type: 'SET_SAVED_LIST_ID', listId: id, savedListId });
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
 
@@ -66,6 +67,24 @@ function toast(msg, type = 'success') {
   el.className = `toast toast-${type} show`;
   clearTimeout(_toastTimer);
   _toastTimer = setTimeout(() => { el.className = 'toast'; }, 2600);
+}
+
+async function saveRemoteList(list) {
+  const auth = await requireAuth();
+  if (!auth) throw new Error('Sign in before saving lists.');
+
+  const response = await apiFetch(list.savedListId ? `/lists/${list.savedListId}` : '/lists', {
+    method: list.savedListId ? 'PUT' : 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      list_id: list.savedListId || null,
+      name: list.name,
+      products: list.products,
+    }),
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.detail || 'Could not save list.');
+  return data;
 }
 
 // ── Modal ─────────────────────────────────────────────────────────────────────
@@ -130,7 +149,7 @@ function refreshCompareBtn(lists) {
   const count    = selected.length;
   const total    = lists.flatMap(l => l.products).length;
 
-  btn.disabled = count < MIN;
+  btn.disabled = count < MIN || count > MAX_COMPARE;
   label.textContent = count >= MIN ? `View Comparison (${count} selected)` : 'View Comparison';
 
   // Badge on Lists tab shows total products across all lists
@@ -161,8 +180,11 @@ function renderLists(lists) {
     group.innerHTML = `
       <div class="list-group-header">
         <span class="list-group-name">${list.name}</span>
-        <span class="list-group-count">${list.products.length}/5 products</span>
+        <span class="list-group-count">${list.products.length} products</span>
         <div class="list-group-actions">
+          <button class="icon-btn save-list-btn" title="Save list" data-id="${list.id}">
+            <svg viewBox="0 0 20 20" fill="currentColor"><path d="M7.707 10.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4a1 1 0 00-1.414-1.414L9 11.586l-1.293-1.293z"/><path fill-rule="evenodd" d="M3 5a2 2 0 012-2h8.586a2 2 0 011.414.586L17.414 6A2 2 0 0118 7.414V15a2 2 0 01-2 2H5a2 2 0 01-2-2V5zm2 0v10h11V7.414L13.586 5H5z" clip-rule="evenodd"/></svg>
+          </button>
           <button class="icon-btn rename-btn" title="Rename list" data-id="${list.id}">
             <svg viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zm-2.207 2.207L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg>
           </button>
@@ -193,6 +215,21 @@ function renderLists(lists) {
     `;
 
     // ── Event listeners ──
+
+    // Save to backend
+    group.querySelector('.save-list-btn').addEventListener('click', async e => {
+      e.stopPropagation();
+      try {
+        const saved = await saveRemoteList(list);
+        const res = await setSavedListId(list.id, saved.id);
+        renderLists(res.lists);
+        populateSelects(res.lists);
+        refreshCompareBtn(res.lists);
+        toast('List saved');
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+    });
 
     // Rename
     group.querySelector('.rename-btn').addEventListener('click', async e => {
@@ -271,7 +308,7 @@ function setupTabs() {
 
 async function checkApi() {
   try {
-    const r = await fetch(`${API}/health`, { signal: AbortSignal.timeout(2000) });
+    const r = await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(5000) });
     return r.ok;
   } catch { return false; }
 }
@@ -283,6 +320,14 @@ async function init() {
   document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
 
   setupTabs();
+  document.getElementById('history-btn').addEventListener('click', () => {
+    chrome.tabs.create({ url: chrome.runtime.getURL('history.html') });
+  });
+
+  const auth = await getAuthState();
+  if (!auth.token) {
+    chrome.tabs.create({ url: chrome.runtime.getURL('login.html') });
+  }
 
   // Load initial state
   let lists = await getLists();
@@ -398,20 +443,32 @@ async function init() {
     const current = await getLists();
     const selected = current.flatMap(l => l.products.filter(p => p.selected).map(p => p.url));
     if (selected.length < MIN) { toast(`Select at least ${MIN} products`, 'warning'); return; }
+    if (selected.length > MAX_COMPARE) { toast(`Select up to ${MAX_COMPARE} products to compare`, 'warning'); return; }
 
     const btn = document.getElementById('compare-btn');
     btn.disabled = true;
     document.getElementById('compare-btn-label').textContent = 'Starting…';
 
     try {
-      const res = await fetch(`${API}/compare`, {
+      const selectedLists = current.filter(l => l.products.some(p => p.selected));
+      let savedListId = null;
+      if (selectedLists.length === 1) {
+        const saved = await saveRemoteList(selectedLists[0]);
+        savedListId = saved.id;
+        await setSavedListId(selectedLists[0].id, saved.id);
+      }
+      const endpoint = savedListId ? `/lists/${savedListId}/compare` : '/compare';
+      const res = await apiFetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ urls: selected }),
       });
       if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'Server error'); }
       const { job_id } = await res.json();
-      await chrome.storage.session.set({ current_job_id: job_id });
+      await chrome.storage.session.set({
+        current_job_id: job_id,
+        current_saved_list_id: savedListId,
+      });
       chrome.tabs.create({ url: chrome.runtime.getURL('results.html') });
     } catch (err) {
       toast(err.message, 'error');

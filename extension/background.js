@@ -6,18 +6,12 @@
  * State shape (stored in chrome.storage.session):
  * {
  *   lists: [
- *     {
- *       id: number,
- *       name: string,
- *       products: [{ url: string, platform: string, selected: boolean }]
- *     }
+ *     { id, savedListId, name, products: [{ url, platform, selected }] }
  *   ]
  * }
  *
  * Session storage clears automatically when the browser is closed (per spec).
  */
-
-const MAX_PRODUCTS_PER_LIST = 5;
 
 function nextId(lists) {
   return lists.length === 0 ? 1 : Math.max(...lists.map(l => l.id)) + 1;
@@ -67,6 +61,15 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         break;
       }
 
+      case 'SET_SAVED_LIST_ID': {
+        const list = lists.find(l => l.id === msg.listId);
+        if (!list) { sendResponse({ success: false, error: 'List not found' }); break; }
+        list.savedListId = msg.savedListId;
+        await saveLists(lists);
+        sendResponse({ success: true, lists });
+        break;
+      }
+
       case 'DELETE_LIST': {
         const idx = lists.findIndex(l => l.id === msg.listId);
         if (idx === -1) { sendResponse({ success: false, error: 'List not found' }); break; }
@@ -84,10 +87,6 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           // Auto-create a default list if none exists
           list = { id: nextId(lists), name: 'My List', products: [] };
           lists.push(list);
-        }
-        if (list.products.length >= MAX_PRODUCTS_PER_LIST) {
-          sendResponse({ success: false, error: `Max ${MAX_PRODUCTS_PER_LIST} products per list.` });
-          break;
         }
         if (list.products.some(p => p.url === msg.url)) {
           sendResponse({ success: false, error: 'Already in this list.' });

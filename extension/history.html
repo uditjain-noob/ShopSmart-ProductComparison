@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ShopSmart Saved Comparisons</title>
+  <link rel="stylesheet" href="history.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>Saved Comparisons</h1>
+      <p id="account-label">Loading...</p>
+    </div>
+    <button id="logout-btn">Log out</button>
+  </header>
+
+  <main class="layout">
+    <aside class="sidebar">
+      <button id="all-comparisons-btn" class="sidebar-action active">All comparisons</button>
+      <h2>Saved Lists</h2>
+      <div id="lists"></div>
+    </aside>
+
+    <section class="middle">
+      <h2 id="middle-title">All comparisons</h2>
+      <div id="products-panel" class="products-panel hidden"></div>
+      <div id="comparisons"></div>
+    </section>
+
+    <section class="viewer">
+      <div id="empty-view" class="empty">Select a comparison to view the saved report.</div>
+      <article id="comparison-view" class="hidden"></article>
+    </section>
+  </main>
+
+  <script src="config.js"></script>
+  <script src="auth.js"></script>
+  <script src="history.js"></script>
+</body>
+</html>

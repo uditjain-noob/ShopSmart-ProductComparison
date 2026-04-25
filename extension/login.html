@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ShopSmart Login</title>
+  <link rel="stylesheet" href="login.css" />
+</head>
+<body>
+  <main class="auth-shell">
+    <section class="auth-card">
+      <h1>ShopSmart</h1>
+      <p class="subtitle">Sign in to save lists and view older comparisons.</p>
+
+      <div class="mode-switch">
+        <button id="login-mode" class="active">Log in</button>
+        <button id="signup-mode">Sign up</button>
+      </div>
+
+      <label>
+        Email
+        <input id="email" type="email" autocomplete="email" placeholder="you@example.com" />
+      </label>
+
+      <label>
+        Password
+        <input id="password" type="password" autocomplete="current-password" placeholder="At least 8 characters" />
+      </label>
+
+      <button id="submit-btn" class="primary-btn">Log in</button>
+      <p id="message" class="message"></p>
+    </section>
+  </main>
+
+  <script src="config.js"></script>
+  <script src="auth.js"></script>
+  <script src="login.js"></script>
+</body>
+</html>

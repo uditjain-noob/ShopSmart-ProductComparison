@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: shopsmart-api
+    runtime: python
+    buildCommand: pip install uv && uv sync --frozen
+    startCommand: uv run uvicorn backend.api:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.11
+      - key: TURSO_DATABASE_URL
+        sync: false
+      - key: TURSO_AUTH_TOKEN
+        sync: false
+      - key: JWT_SECRET_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false

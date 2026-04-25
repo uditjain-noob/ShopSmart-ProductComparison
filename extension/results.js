@@ -1,6 +1,5 @@
 'use strict';
 
-const API      = 'http://localhost:8000';
 const POLL_MS  = 3000;
 
 // ── Theme ─────────────────────────────────────────────────────────────────────
@@ -39,6 +38,8 @@ const _addProduct = (listId, url)   => bg({ type: 'ADD_PRODUCT', listId, url, pl
 
 let _currentJobId  = null;  // set once job_id is read from storage
 let _currentAnswers = null; // stored when questionnaire is submitted; reused for discover-better
+let _currentSavedListId = null;
+let _savedComparisonId = null;
 
 // ── Utility ───────────────────────────────────────────────────────────────────
 
@@ -203,8 +204,48 @@ function renderResults(result) {
     window.print();
   });
 
+  const saveBtn = document.getElementById('save-comparison-btn');
+  saveBtn.textContent = _savedComparisonId ? 'Saved' : 'Save Comparison';
+  saveBtn.disabled = Boolean(_savedComparisonId);
+  saveBtn.addEventListener('click', saveCurrentComparison);
+
   hide('view-loading');
   show('view-results');
+}
+
+async function saveCurrentComparison() {
+  const btn = document.getElementById('save-comparison-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+
+  try {
+    let listId = _currentSavedListId;
+    if (!listId) {
+      const listsResponse = await apiFetch('/lists');
+      const lists = await listsResponse.json();
+      if (!listsResponse.ok) throw new Error(lists.detail || 'Could not load saved lists.');
+      if (!lists.length) throw new Error('Save a list from the popup first, then save this comparison.');
+      const options = lists.map((l, i) => `${i + 1}. ${l.name}`).join('\n');
+      const choice = window.prompt(`Save comparison to which list?\n${options}`);
+      const index = Number(choice) - 1;
+      if (!Number.isInteger(index) || !lists[index]) throw new Error('Save cancelled.');
+      listId = lists[index].id;
+    }
+
+    const response = await apiFetch(`/lists/${listId}/comparisons`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ job_id: _currentJobId }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.detail || 'Could not save comparison.');
+    _savedComparisonId = data.comparison_id;
+    btn.textContent = 'Saved';
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = 'Save Comparison';
+    alert(err.message);
+  }
 }
 
 // ── Questionnaire ─────────────────────────────────────────────────────────────
@@ -292,7 +333,7 @@ async function submitQuestionnaire() {
   submitBtn.innerHTML = `Finding your best match… <span class="btn-spin"></span>`;
 
   try {
-    const res = await fetch(`${API}/compare/${_currentJobId}/recommend`, {
+    const res = await apiFetch(`/compare/${_currentJobId}/recommend`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ answers }),
@@ -373,7 +414,7 @@ async function startDiscoverBetter() {
   show('discover-better-loading');
 
   try {
-    const res = await fetch(`${API}/compare/${_currentJobId}/discover-better`, {
+    const res = await apiFetch(`/compare/${_currentJobId}/discover-better`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ answers: _currentAnswers }),
@@ -401,7 +442,7 @@ function pollDiscoverJob(discoverJobId) {
 
   async function check() {
     try {
-      const res  = await fetch(`${API}/discover/${discoverJobId}`);
+      const res  = await apiFetch(`/discover/${discoverJobId}`);
 
       if (!res.ok) {
         clearInterval(interval);
@@ -626,7 +667,7 @@ async function pollJob(jobId) {
 
   async function check() {
     try {
-      const res  = await fetch(`${API}/compare/${jobId}`);
+      const res  = await apiFetch(`/compare/${jobId}`);
       const data = await res.json();
 
       document.getElementById('progress-text').textContent = data.progress || '…';
@@ -634,6 +675,7 @@ async function pollJob(jobId) {
 
       if (data.status === 'complete') {
         clearInterval(interval);
+        _savedComparisonId = data.saved_comparison_id || null;
         renderResults(data.result);
       } else if (data.status === 'error') {
         clearInterval(interval);
@@ -660,9 +702,18 @@ async function pollJob(jobId) {
 async function init() {
   await initTheme();
   document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+  const auth = await requireAuth();
+  if (!auth) {
+    document.getElementById('error-text').textContent = 'Please sign in before viewing comparisons.';
+    hide('view-loading');
+    show('view-error');
+    return;
+  }
 
-  const { current_job_id: jobId } = await chrome.storage.session.get(['current_job_id']);
+  const { current_job_id: jobId, current_saved_list_id: savedListId } =
+    await chrome.storage.session.get(['current_job_id', 'current_saved_list_id']);
   _currentJobId = jobId;
+  _currentSavedListId = savedListId || null;
 
   if (!jobId) {
     document.getElementById('error-text').textContent =

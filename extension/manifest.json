@@ -11,7 +11,8 @@
     "https://www.amazon.co.uk/*",
     "https://www.amazon.de/*",
     "https://www.amazon.ca/*",
-    "http://localhost:8000/*"
+    "http://localhost:8000/*",
+    "https://*.onrender.com/*"
   ],
 
   "action": {
@@ -39,7 +40,7 @@
 
   "web_accessible_resources": [
     {
-      "resources": ["results.html"],
+      "resources": ["results.html", "login.html", "history.html"],
       "matches": ["<all_urls>"]
     }
   ]
